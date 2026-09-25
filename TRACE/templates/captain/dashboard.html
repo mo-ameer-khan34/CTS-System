@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Captain Dashboard — TRACE</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body class="dashboard-body">
+
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <svg viewBox="0 0 60 60" width="36" height="36" fill="none"><polygon points="30,3 57,18 57,42 30,57 3,42 3,18" fill="#001A57" stroke="#F0B429" stroke-width="2"/><text x="30" y="35" text-anchor="middle" fill="#FFFFFF" font-size="11" font-weight="bold" font-family="Arial">TRACE</text></svg>
+    <span>TRACE</span>
+  </div>
+  <div class="sidebar-user">
+    <div class="sidebar-avatar" id="sidebarAvatar">
+      <svg viewBox="0 0 24 24" width="32" height="32" fill="none"><circle cx="12" cy="8" r="4" stroke="white" stroke-width="1.5"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </div>
+    <div>
+      <p class="sidebar-name">{{ officer.full_name }}</p>
+      <p class="sidebar-role">Captain</p>
+    </div>
+  </div>
+  <nav class="sidebar-nav">
+    <a href="#" class="nav-item active" data-tab="dashboard" onclick="showTab('dashboard', this)">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none"><rect x="3" y="3" width="7" height="7" stroke="currentColor" stroke-width="2"/><rect x="14" y="3" width="7" height="7" stroke="currentColor" stroke-width="2"/><rect x="3" y="14" width="7" height="7" stroke="currentColor" stroke-width="2"/><rect x="14" y="14" width="7" height="7" stroke="currentColor" stroke-width="2"/></svg>
+      Dashboard
+    </a>
+    <a href="#" class="nav-item" data-tab="cases-to-close" onclick="showTab('cases-to-close', this)">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><polyline points="22 4 12 14.01 9 11.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Cases to be Closed
+    </a>
+    <a href="#" class="nav-item" data-tab="escalated" onclick="showTab('escalated', this)">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none"><polyline points="17 11 21 7 17 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 7H3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><polyline points="7 21 3 17 7 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 17h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      Escalated Cases
+    </a>
+    <a href="#" class="nav-item" data-tab="flagged" onclick="showTab('flagged', this)">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="4" y1="22" x2="4" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      Flagged Cases
+    </a>
+    <a href="#" class="nav-item" data-tab="profile" onclick="showTab('profile', this)">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="2"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      My Profile
+    </a>
+  </nav>
+  <div class="sidebar-footer">
+    <a href="{{ url_for('auth.logout') }}" class="btn-logout">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><polyline points="16 17 21 12 16 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="21" y1="12" x2="9" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      Logout
+    </a>
+  </div>
+</aside>
+
+<main class="dashboard-main">
+  <header class="dash-header">
+    <div class="dash-welcome">
+      <h1>Welcome, Captain {{ officer.full_name }}</h1>
+      <p>{{ officer.rank_name }} — {{ officer.department }}</p>
+    </div>
+  </header>
+
+  <!-- Dashboard Tab -->
+  <div id="tab-dashboard" class="tab-content active">
+    <h2 class="tab-title">Monthly Overview</h2>
+    <div class="stats-grid">
+      <div class="stat-card stat-blue">
+        <div class="stat-icon"><svg viewBox="0 0 24 24" width="32" height="32" fill="none"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke="white" stroke-width="2"/><polyline points="22 4 12 14.01 9 11.01" stroke="white" stroke-width="2"/></svg></div>
+        <div class="stat-info"><span class="stat-num" id="statClosed">—</span><span class="stat-label">Cases Closed This Month</span></div>
+      </div>
+      <div class="stat-card stat-yellow">
+        <div class="stat-icon"><svg viewBox="0 0 24 24" width="32" height="32" fill="none"><polyline points="17 11 21 7 17 3" stroke="white" stroke-width="2"/><path d="M21 7H3" stroke="white" stroke-width="2"/></svg></div>
+        <div class="stat-info"><span class="stat-num" id="statEscalated">—</span><span class="stat-label">Cases Escalated This Month</span></div>
+      </div>
+      <div class="stat-card stat-dark">
+        <div class="stat-icon"><svg viewBox="0 0 24 24" width="32" height="32" fill="none"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" stroke="white" stroke-width="2"/></svg></div>
+        <div class="stat-info"><span class="stat-num" id="statFlagged">—</span><span class="stat-label">Cases Flagged This Month</span></div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <h3>Monthly Case Activity</h3>
+      <canvas id="activityChart" height="120"></canvas>
+    </div>
+  </div>
+
+  <!-- Cases to be Closed Tab -->
+  <div id="tab-cases-to-close" class="tab-content">
+    <h2 class="tab-title">Cases to be Closed</h2>
+    <p class="tab-desc">These dockets have reached "Investigation Completed" status and are ready for closure.</p>
+    <div id="closeCasesTable" class="cases-table-wrap"><div class="loading-state">Loading...</div></div>
+  </div>
+
+  <!-- Escalated Cases Tab -->
+  <div id="tab-escalated" class="tab-content">
+    <h2 class="tab-title">Escalated Cases</h2>
+    <p class="tab-desc">Dockets escalated to Captain by Constables.</p>
+    <div id="escalatedTable" class="cases-table-wrap"><div class="loading-state">Loading...</div></div>
+  </div>
+
+  <!-- Flagged Cases Tab -->
+  <div id="tab-flagged" class="tab-content">
+    <h2 class="tab-title">Flagged Cases</h2>
+    <p class="tab-desc">Cases you have previously flagged for review.</p>
+    <div id="flaggedTable" class="cases-table-wrap"><div class="loading-state">Loading...</div></div>
+  </div>
+
+  <!-- Profile Tab -->
+  <div id="tab-profile" class="tab-content">
+    <h2 class="tab-title">My Profile</h2>
+    <div class="profile-layout">
+      <div class="profile-pic-card">
+        <div class="profile-avatar" id="profileAvatar">
+          <svg viewBox="0 0 24 24" width="80" height="80" fill="none"><circle cx="12" cy="8" r="5" stroke="#0052CC" stroke-width="2"/><path d="M3 21c0-5 4-9 9-9s9 4 9 9" stroke="#0052CC" stroke-width="2" stroke-linecap="round"/></svg>
+        </div>
+        <label class="btn btn-outline" style="cursor:pointer;display:inline-block;margin-top:1rem;">
+          Change Photo
+          <input type="file" name="profile_picture" accept=".jpg,.jpeg,.png" style="display:none;" onchange="uploadCaptainProfilePicture(this)">
+        </label>
+      </div>
+      <div class="profile-form-card">
+        <form id="profileForm">
+          <div class="form-row">
+            <div class="form-group"><label>Full Name</label><input type="text" name="full_name" id="pf_name"></div>
+            <div class="form-group"><label>Email Address</label><input type="email" name="email" id="pf_email"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Officer ID</label><input type="text" name="officer_id" id="pf_oid"></div>
+            <div class="form-group"><label>Rank</label><input type="text" name="rank_name" id="pf_rank"></div>
+          </div>
+          <button type="button" class="btn btn-primary" onclick="saveCaptainProfile()">Save Changes</button>
+          <div id="profileMsg" class="alert" style="display:none;margin-top:1rem;"></div>
+        </form>
+        <hr class="section-divider">
+        <h3>Change Password</h3>
+        <div class="form-group"><label>Current Password</label><div class="password-field"><input type="password" id="curPw"><button type="button" class="pw-toggle" onclick="togglePw('curPw',this)">Show</button></div></div>
+        <div class="form-row">
+          <div class="form-group"><label>New Password</label><input type="password" id="newPw"></div>
+          <div class="form-group"><label>Confirm</label><input type="password" id="confPw"></div>
+        </div>
+        <button type="button" class="btn btn-primary" onclick="changeCaptainPassword()">Update Password</button>
+        <div id="pwMsg" class="alert" style="display:none;margin-top:1rem;"></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Confirm View Modal -->
+<div id="confirmModal" class="modal-overlay" style="display:none;">
+  <div class="modal">
+    <div class="modal-header"><h3>Confirm Docket Access</h3></div>
+    <div class="modal-body">
+      <p>You are about to access docket <strong id="confirmDocketNumber"></strong>. Your access will be logged.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('confirmModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmCaptainView()">Confirm View</button>
+    </div>
+  </div>
+</div>
+
+<!-- Docket Modal -->
+<div id="docketModal" class="modal-overlay" style="display:none;">
+  <div class="modal modal-large">
+    <div class="modal-header">
+      <h3>Docket — <span id="modalCaseNum"></span></h3>
+      <button class="modal-close" onclick="closeModal('docketModal')">&times;</button>
+    </div>
+    <div class="modal-body" id="docketModalBody"></div>
+    <div class="modal-footer" id="docketModalFooter">
+      <button class="btn btn-outline" onclick="closeModal('docketModal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Flag Modal -->
+<div id="flagModal" class="modal-overlay" style="display:none;">
+  <div class="modal">
+    <div class="modal-header"><h3>Flag Docket</h3></div>
+    <div class="modal-body">
+      <p>Please provide a reason for flagging docket <strong id="flagDocketNum"></strong>.</p>
+      <div class="form-group" style="margin-top:1rem;">
+        <label>Reason for Flagging <span class="required">*</span></label>
+        <textarea id="flagReason" rows="4" placeholder="Describe why this docket is being flagged..." style="width:100%;padding:.75rem;border:1px solid #ddd;border-radius:6px;resize:vertical;"></textarea>
+      </div>
+      <div id="flagError" class="alert alert-error" style="display:none;margin-top:.5rem;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('flagModal')">Cancel</button>
+      <button class="btn btn-danger" onclick="submitFlag()">Flag Docket</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast" style="display:none;"></div>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+<script src="{{ url_for('static', filename='js/captain.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Constable Dashboard — TRACE</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+</head>
+<body class="dashboard-body">
+
+<!-- Sidebar -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <svg viewBox="0 0 60 60" width="36" height="36" fill="none"><polygon points="30,3 57,18 57,42 30,57 3,42 3,18" fill="#001A57" stroke="#F0B429" stroke-width="2"/><text x="30" y="35" text-anchor="middle" fill="#FFFFFF" font-size="11" font-weight="bold" font-family="Arial">TRACE</text></svg>
+    <span>TRACE</span>
+  </div>
+  <div class="sidebar-user">
+    <div class="sidebar-avatar" id="sidebarAvatar">
+      <svg viewBox="0 0 24 24" width="32" height="32" fill="none"><circle cx="12" cy="8" r="4" stroke="white" stroke-width="1.5"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </div>
+    <div>
+      <p class="sidebar-name">{{ officer.full_name }}</p>
+      <p class="sidebar-role">Constable</p>
+    </div>
+  </div>
+  <nav class="sidebar-nav">
+    <a href="#" class="nav-item active" data-tab="my-cases" onclick="showTab('my-cases', this)">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><polyline points="14 2 14 8 20 8" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+      My Assigned Cases
+    </a>
+    <a href="#" class="nav-item" data-tab="add-docket" onclick="showTab('add-docket', this)">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><line x1="12" y1="8" x2="12" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="8" y1="12" x2="16" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      Add New Docket
+    </a>
+    <a href="#" class="nav-item" data-tab="profile" onclick="showTab('profile', this)">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="2"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      My Profile
+    </a>
+  </nav>
+  <div class="sidebar-footer">
+    <a href="{{ url_for('auth.logout') }}" class="btn-logout">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><polyline points="16 17 21 12 16 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="21" y1="12" x2="9" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      Logout
+    </a>
+  </div>
+</aside>
+
+<!-- Main content -->
+<main class="dashboard-main">
+  <header class="dash-header">
+    <div class="dash-welcome">
+      <h1>Welcome, {{ officer.full_name }}</h1>
+      <p>Constable | {{ officer.rank_name }} — {{ officer.department }}</p>
+    </div>
+    <div class="dash-header-right">
+      <span class="status-badge approved">Approved</span>
+    </div>
+  </header>
+
+  <!-- My Assigned Cases Tab -->
+  <div id="tab-my-cases" class="tab-content active">
+    <div class="content-card highlight-card">
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="#0052CC" stroke-width="2"/></svg>
+      <strong>View or Edit Existing Dockets</strong>
+      <p>Select any docket below to view its details. A confirmation is required before access is granted and logged.</p>
+    </div>
+
+    <div class="search-bar-row">
+      <input type="text" id="caseSearch" placeholder="Search by case number or status..." onkeyup="searchCases()">
+      <button class="btn btn-outline" onclick="searchCases()">Search</button>
+    </div>
+
+    <div id="casesTable" class="cases-table-wrap">
+      <div class="loading-state">Loading cases...</div>
+    </div>
+  </div>
+
+  <!-- Add New Docket Tab -->
+  <div id="tab-add-docket" class="tab-content">
+    <h2 class="tab-title">Add New Docket</h2>
+    <div class="content-card">
+      <form id="addDocketForm" enctype="multipart/form-data">
+        <div class="form-section-title">Complainant Information</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Full Name of Complainant <span class="required">*</span></label>
+            <input type="text" name="complainant_full_name" required>
+          </div>
+          <div class="form-group">
+            <label>ID Number of Complainant <span class="required">*</span></label>
+            <input type="text" name="complainant_id_number" required maxlength="13">
+          </div>
+        </div>
+        <div class="form-section-title">Case Details</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Case Number <span class="required">*</span></label>
+            <input type="text" name="case_number" required placeholder="Unique case reference">
+          </div>
+          <div class="form-group">
+            <label>Case Type <span class="required">*</span></label>
+            <input type="text" name="case_type" required placeholder="e.g. Theft, Assault">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Date Reported <span class="required">*</span></label>
+            <input type="date" name="date_reported" required>
+          </div>
+          <div class="form-group">
+            <label>Reporting Station <span class="required">*</span></label>
+            <input type="text" name="reporting_station" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Status of Case <span class="required">*</span></label>
+          <select name="status" required>
+            <option value="Case Reported">Case Reported</option>
+            <option value="Investigator Assigned">Investigator Assigned</option>
+            <option value="Investigation in Progress">Investigation in Progress</option>
+            <option value="Court Proceedings">Court Proceedings</option>
+            <option value="Escalated to Captain">Escalated to Captain</option>
+            <option value="Investigation Completed">Investigation Completed</option>
+          </select>
+        </div>
+
+        <div class="form-section-title">Document Uploads</div>
+        <div class="upload-grid">
+          <div class="upload-block">
+            <label class="upload-label">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="#0052CC" stroke-width="2"/></svg>
+              <span>Upload Affidavit</span>
+              <small>PDF format only</small>
+              <input type="file" name="affidavit" accept=".pdf" id="affidavitFile" onchange="updateFileLabel(this)">
+            </label>
+            <span class="file-chosen">No file chosen</span>
+          </div>
+          <div class="upload-block">
+            <label class="upload-label">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="#0052CC" stroke-width="2"/></svg>
+              <span>Witness Statements</span>
+              <small>PDF format only</small>
+              <input type="file" name="witness_statement" accept=".pdf" onchange="updateFileLabel(this)">
+            </label>
+            <span class="file-chosen">No file chosen</span>
+          </div>
+          <div class="upload-block">
+            <label class="upload-label">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="#0052CC" stroke-width="2"/></svg>
+              <span>Investigation Diary</span>
+              <small>PDF format only</small>
+              <input type="file" name="investigation_diary" accept=".pdf" onchange="updateFileLabel(this)">
+            </label>
+            <span class="file-chosen">No file chosen</span>
+          </div>
+          <div class="upload-block">
+            <label class="upload-label">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="#0052CC" stroke-width="2"/></svg>
+              <span>Suspect Information &amp; Supporting Documents</span>
+              <small>PDF format only</small>
+              <input type="file" name="suspect_info" accept=".pdf" onchange="updateFileLabel(this)">
+            </label>
+            <span class="file-chosen">No file chosen</span>
+          </div>
+          <div class="upload-block evidence-block">
+            <label class="upload-label">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" stroke="#0052CC" stroke-width="2"/><circle cx="8.5" cy="8.5" r="1.5" fill="#001A57"/><polyline points="21 15 16 10 5 21" stroke="#0052CC" stroke-width="2"/></svg>
+              <span>Evidence</span>
+              <small>Images, Videos, PDF, MP3 (multiple files allowed)</small>
+              <input type="file" name="evidence" accept=".pdf,.jpg,.jpeg,.png,.gif,.mp4,.avi,.mov,.mkv,.mp3,.wav" multiple onchange="updateFileLabel(this)">
+            </label>
+            <span class="file-chosen">No files chosen</span>
+          </div>
+        </div>
+
+        <div class="docket-actions">
+          <button type="button" class="btn btn-ai" onclick="openAICheck()">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><path d="M8 12l3 3 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            AI Check
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Profile Tab -->
+  <div id="tab-profile" class="tab-content">
+    <h2 class="tab-title">My Profile</h2>
+    <div class="profile-layout">
+      <div class="profile-pic-card">
+        <div class="profile-avatar" id="profileAvatar">
+          <svg viewBox="0 0 24 24" width="80" height="80" fill="none"><circle cx="12" cy="8" r="5" stroke="#0052CC" stroke-width="2"/><path d="M3 21c0-5 4-9 9-9s9 4 9 9" stroke="#0052CC" stroke-width="2" stroke-linecap="round"/></svg>
+        </div>
+        <form id="picForm" enctype="multipart/form-data">
+          <label class="btn btn-outline" style="cursor:pointer;display:inline-block;margin-top:1rem;">
+            Change Photo
+            <input type="file" name="profile_picture" accept=".jpg,.jpeg,.png" style="display:none;" onchange="uploadProfilePicture(this)">
+          </label>
+        </form>
+        <p class="text-muted" style="margin-top:.5rem;font-size:0.8rem;">Profile photo is for display only</p>
+      </div>
+      <div class="profile-form-card">
+        <form id="profileForm">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Full Name</label>
+              <input type="text" name="full_name" id="pf_name">
+            </div>
+            <div class="form-group">
+              <label>Email Address</label>
+              <input type="email" name="email" id="pf_email">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Officer ID</label>
+              <input type="text" name="officer_id" id="pf_oid">
+            </div>
+            <div class="form-group">
+              <label>Rank</label>
+              <input type="text" name="rank_name" id="pf_rank">
+            </div>
+          </div>
+          <button type="button" class="btn btn-primary" onclick="saveProfile()">Save Profile Changes</button>
+          <div id="profileMsg" class="alert" style="display:none;margin-top:1rem;"></div>
+        </form>
+
+        <hr class="section-divider">
+
+        <h3>Change Password</h3>
+        <form id="pwForm">
+          <div class="form-group">
+            <label>Current Password</label>
+            <div class="password-field">
+              <input type="password" name="current_password" id="curPw" placeholder="Enter current password">
+              <button type="button" class="pw-toggle" onclick="togglePw('curPw', this)">Show</button>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>New Password</label>
+              <input type="password" name="new_password" id="newPw" placeholder="Min 8 characters">
+            </div>
+            <div class="form-group">
+              <label>Confirm New Password</label>
+              <input type="password" name="confirm_password" id="confPw" placeholder="Re-enter new password">
+            </div>
+          </div>
+          <button type="button" class="btn btn-primary" onclick="changePassword()">Update Password</button>
+          <div id="pwMsg" class="alert" style="display:none;margin-top:1rem;"></div>
+        </form>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Confirmation Modal (view docket) -->
+<div id="confirmModal" class="modal-overlay" style="display:none;">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Confirm Docket Access</h3>
+    </div>
+    <div class="modal-body">
+      <p>Are you sure you want to view this docket? Your access will be logged and recorded in the audit history.</p>
+      <p><strong id="confirmDocketNumber"></strong></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('confirmModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmViewDocket()">Confirm View</button>
+    </div>
+  </div>
+</div>
+
+<!-- Docket View/Edit Modal -->
+<div id="docketModal" class="modal-overlay" style="display:none;">
+  <div class="modal modal-large">
+    <div class="modal-header">
+      <h3>Docket Details — <span id="modalCaseNum"></span></h3>
+      <button class="modal-close" onclick="closeModal('docketModal')">&times;</button>
+    </div>
+    <div class="modal-body" id="docketModalBody">
+      <!-- Populated by JS -->
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('docketModal')">Close</button>
+      <button class="btn btn-primary" onclick="saveDocketChanges()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- AI Check Modal -->
+<div id="aiModal" class="modal-overlay" style="display:none;">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>AI Affidavit Check</h3>
+      <button class="modal-close" onclick="closeModal('aiModal')">&times;</button>
+    </div>
+    <div class="modal-body" id="aiModalBody">
+      <div class="loading-state">Analysing affidavit...</div>
+    </div>
+    <div class="modal-footer" id="aiModalFooter"></div>
+  </div>
+</div>
+
+<!-- Force Save PIN Modal -->
+<div id="forceSaveModal" class="modal-overlay" style="display:none;">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Force Save — PIN Required</h3>
+    </div>
+    <div class="modal-body">
+      <div class="alert alert-warning">Warning: You are overriding an invalid AI check. This action will be recorded in the audit trail and the Admin will be notified.</div>
+      <div class="form-group" style="margin-top:1rem;">
+        <label>Enter Force Save PIN</label>
+        <input type="password" id="forcePinInput" placeholder="Enter unique PIN">
+      </div>
+      <div id="forcePinError" class="alert alert-error" style="display:none;margin-top:.5rem;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="backToDocket()">Back to Docket for Review</button>
+      <button class="btn btn-danger" onclick="submitForceSave()">Force Save Docket</button>
+    </div>
+  </div>
+</div>
+
+<!-- Success/Error toast -->
+<div id="toast" class="toast" style="display:none;"></div>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+<script src="{{ url_for('static', filename='js/constable.js') }}"></script>
+</body>
+</html>

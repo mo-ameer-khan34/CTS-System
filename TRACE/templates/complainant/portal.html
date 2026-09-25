@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Complainant Case Portal — TRACE</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="complainant-body">
+
+<header class="complainant-header">
+  <div class="header-inner">
+    <div class="brand">
+      <div class="badge-icon">
+        <svg viewBox="0 0 60 60" width="44" height="44" fill="none"><polygon points="30,3 57,18 57,42 30,57 3,42 3,18" fill="#001A57" stroke="#F0B429" stroke-width="2"/><text x="30" y="35" text-anchor="middle" fill="#FFFFFF" font-size="11" font-weight="bold" font-family="Arial">TRACE</text></svg>
+      </div>
+      <div class="brand-text">
+        <span class="brand-name">TRACE</span>
+        <span class="brand-tagline">Complainant Case Status Portal</span>
+      </div>
+    </div>
+    <a href="{{ url_for('auth.index') }}" class="btn btn-outline btn-sm">← Back to Home</a>
+  </div>
+</header>
+
+<main class="complainant-main">
+  <!-- Search Panel -->
+  <div id="searchPanel" class="complainant-card">
+    <div class="complainant-icon">
+      <svg viewBox="0 0 24 24" width="48" height="48" fill="none"><circle cx="11" cy="11" r="8" stroke="#F0B429" stroke-width="2"/><path d="M21 21l-4.35-4.35" stroke="#F0B429" stroke-width="2" stroke-linecap="round"/></svg>
+    </div>
+    <h1>Check Your Case Status</h1>
+    <p>Enter your details below to view the current status of your reported case.</p>
+
+    <form id="caseSearchForm" class="complainant-form">
+      <div class="form-group">
+        <label>Full Name <span class="required">*</span></label>
+        <input type="text" id="c_name" placeholder="As submitted when case was reported" required>
+      </div>
+      <div class="form-group">
+        <label>South African ID Number <span class="required">*</span></label>
+        <input type="text" id="c_id" maxlength="13" placeholder="Your 13-digit SA ID number" required>
+      </div>
+      <div class="form-group">
+        <label>Case Number <span class="required">*</span></label>
+        <input type="text" id="c_case" placeholder="Your assigned case number" required>
+      </div>
+      <div id="searchError" class="alert alert-error" style="display:none;"></div>
+      <button type="button" class="btn btn-gold btn-full" onclick="searchCase()">Check Case Status</button>
+    </form>
+  </div>
+
+  <!-- Results Panel -->
+  <div id="resultsPanel" class="complainant-card" style="display:none;">
+    <div class="results-header">
+      <h2>Case Information</h2>
+      <button class="btn btn-outline btn-sm" onclick="resetSearch()">Search Another Case</button>
+    </div>
+
+    <div class="case-details-grid">
+      <div class="case-detail-item">
+        <span class="detail-label">Case Number</span>
+        <span class="detail-value" id="r_case_number">—</span>
+      </div>
+      <div class="case-detail-item">
+        <span class="detail-label">Date Reported</span>
+        <span class="detail-value" id="r_date_reported">—</span>
+      </div>
+      <div class="case-detail-item">
+        <span class="detail-label">Case Type</span>
+        <span class="detail-value" id="r_case_type">—</span>
+      </div>
+      <div class="case-detail-item">
+        <span class="detail-label">Reporting Station</span>
+        <span class="detail-value" id="r_station">—</span>
+      </div>
+      <div class="case-detail-item">
+        <span class="detail-label">Investigating Officer</span>
+        <span class="detail-value" id="r_officer">—</span>
+      </div>
+      <div class="case-detail-item">
+        <span class="detail-label">Current Status</span>
+        <span class="detail-value" id="r_status">—</span>
+      </div>
+    </div>
+
+    <div class="case-actions">
+      <button class="btn btn-outline" onclick="viewAffidavit()" id="affidavitBtn">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" stroke-width="2"/><polyline points="14 2 14 8 20 8" stroke="currentColor" stroke-width="2"/></svg>
+        View My Affidavit
+      </button>
+    </div>
+
+    <!-- Case Closed / Appeal Section -->
+    <div id="appealSection" style="display:none;">
+      <div class="appeal-notice">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none"><circle cx="12" cy="12" r="10" stroke="#F0B429" stroke-width="2"/><path d="M12 8v4M12 16h.01" stroke="#F0B429" stroke-width="2" stroke-linecap="round"/></svg>
+        <div>
+          <strong>Your case has been closed.</strong>
+          <p>If you believe this case was closed unlawfully, you may submit an appeal for review by the Administrator.</p>
+        </div>
+      </div>
+
+      <div id="appealStatusSection" style="display:none;">
+        <div class="case-detail-item">
+          <span class="detail-label">Appeal Status</span>
+          <span class="detail-value" id="r_appeal_status">—</span>
+        </div>
+      </div>
+
+      <div id="appealForm">
+        <div class="form-group" style="margin-top:1rem;">
+          <label>Reason for Appeal <span class="required">*</span></label>
+          <p class="form-hint">Maximum 100 words. Please explain briefly why you believe your case was closed unlawfully.</p>
+          <textarea id="appealReason" rows="5" placeholder="Describe your reason for appeal (max 100 words)..." style="width:100%;padding:.75rem;border:1px solid #ddd;border-radius:6px;resize:vertical;font-family:inherit;"></textarea>
+          <small id="wordCount" class="text-muted">0 / 100 words</small>
+        </div>
+        <div id="appealError" class="alert alert-error" style="display:none;"></div>
+        <button class="btn btn-gold" onclick="submitAppeal()" id="appealBtn">
+          Submit Appeal
+        </button>
+      </div>
+
+      <div id="appealSubmitted" style="display:none;">
+        <div class="alert alert-success">Your appeal has been submitted and is under review by the Administrator.</div>
+      </div>
+    </div>
+
+    <!-- Greyed out appeal button when case not closed -->
+    <div id="appealDisabled" style="display:none;margin-top:1.5rem;">
+      <button class="btn btn-disabled" disabled title="Appeals are only available for closed cases">Appeal (Case Not Yet Closed)</button>
+      <p class="text-muted" style="margin-top:.5rem;font-size:.85rem;">The appeal option becomes available once a case is closed.</p>
+    </div>
+  </div>
+</main>
+
+<footer class="complainant-footer">
+  <p>TRACE — Transparent Records &amp; Accountability for Case Enforcement &nbsp;|&nbsp; South African Police Service</p>
+  <p style="font-size:.8rem;margin-top:.25rem;">All access is monitored. Providing false information is a criminal offence.</p>
+</footer>
+
+<div id="toast" class="toast" style="display:none;"></div>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+<script src="{{ url_for('static', filename='js/complainant.js') }}"></script>
+</body>
+</html>

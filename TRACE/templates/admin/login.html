@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Login — TRACE</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="auth-body">
+<div class="auth-container">
+  <div class="auth-card admin-card">
+    <div class="auth-header">
+      <div class="auth-badge admin-badge">
+        <svg viewBox="0 0 60 60" width="48" height="48" fill="none"><polygon points="30,3 57,18 57,42 30,57 3,42 3,18" fill="#0D1B3E" stroke="#F0B429" stroke-width="2.5"/><text x="30" y="35" text-anchor="middle" fill="#F0B429" font-size="10" font-weight="bold" font-family="Arial">ADMIN</text></svg>
+      </div>
+      <h1>Administrator Login</h1>
+      <p>Restricted access — authorised system administrators only</p>
+    </div>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}{% for category, message in messages %}
+        <div class="alert alert-{{ category }}">{{ message }}</div>
+      {% endfor %}{% endif %}
+    {% endwith %}
+    <form method="POST" action="{{ url_for('auth.admin_login') }}" class="auth-form">
+      <div class="form-group">
+        <label>Username <span class="required">*</span></label>
+        <input type="text" name="username" required placeholder="Admin username">
+      </div>
+      <div class="form-group">
+        <label>Password <span class="required">*</span></label>
+        <div class="password-field">
+          <input type="password" name="password" id="adminPw" required placeholder="Admin password">
+          <button type="button" class="pw-toggle" onclick="togglePw('adminPw', this)">Show</button>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-admin btn-full">Login as Administrator</button>
+    </form>
+    <div class="auth-footer">
+      <p><a href="{{ url_for('auth.index') }}">← Back to Home</a></p>
+    </div>
+  </div>
+</div>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
