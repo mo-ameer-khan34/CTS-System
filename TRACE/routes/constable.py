@@ -1,5 +1,6 @@
 import os
 import uuid
+import tempfile
 from datetime import datetime
 from functools import wraps
 
@@ -9,6 +10,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
 from models.db import query_db, execute_db
+from saps_validator import validate_saps_docket_affidavit
 
 constable_bp = Blueprint('constable', __name__)
 
@@ -319,13 +321,23 @@ def ai_check():
     if not _allowed_doc(file.filename):
         return jsonify({'success': False, 'message': 'Only PDF files accepted for affidavit.'}), 400
 
-    # Extract text
+    # Extract text and render first page to image for computer vision check
     pdf_bytes = file.read()
     text = ''
+    temp_img_path = None
     try:
         with fitz.open(stream=pdf_bytes, filetype='pdf') as pdf:
             for page in pdf:
                 text += page.get_text()
+
+            # Render the first page to PNG for signature/stamp detection
+            if len(pdf) > 0:
+                first_page = pdf[0]
+                pix = first_page.get_pixmap(dpi=150)
+                temp_file = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
+                temp_img_path = temp_file.name
+                temp_file.close()
+                pix.save(temp_img_path)
     except Exception as e:
         return jsonify({'success': False, 'message': f'Could not read PDF: {str(e)}'}), 400
 
@@ -333,53 +345,46 @@ def ai_check():
     word_count = len(words)
 
     if word_count <= 250:
+        if temp_img_path and os.path.exists(temp_img_path):
+            os.remove(temp_img_path)
         return jsonify({
             'success': True,
             'word_count': word_count,
             'word_check': 'Rejected',
             'ai_valid': False,
-            'ai_result': 'Word count below 250 — affidavit rejected.',
-            'message': f'The affidavit contains only {word_count} words. Minimum required is 250.'
+            'ai_result': 'Rejected (Low Word Count)',
+            'ai_reason': f'The affidavit contains only {word_count} words. Minimum required is 250.'
         })
 
-    # AI context check
-    api_key = current_app.config.get('ANTHROPIC_API_KEY', '')
-    ai_valid = True
-    ai_result = 'Valid'
-    ai_reason = 'Affidavit appears valid and appropriate for a police docket.'
+    # Run Gemini-powered SAPS Affidavit Compliance Validation
+    try:
+        validation_output = validate_saps_docket_affidavit(
+            text_content=text,
+            image_path=temp_img_path
+        )
+        ai_valid = validation_output.get('is_compliant', False)
+        ai_result = 'Valid' if ai_valid else 'Non-Compliant'
 
-    if api_key:
-        try:
-            import anthropic
-            client = anthropic.Anthropic(api_key=api_key)
-            prompt = (
-                "You are reviewing a police affidavit submitted into a Digital Docket Accountability System for the South African Police Service (SAPS). "
-                "Assess whether the following affidavit text appears to be a genuine, relevant and contextually appropriate police affidavit or statement. "
-                "A valid affidavit should describe an incident, contain factual information about an alleged offence, and be consistent with a formal police docket record. "
-                "Reply with ONLY a JSON object like: {\"valid\": true, \"reason\": \"...\"}. "
-                f"\n\nAFFIDAVIT TEXT:\n{text[:4000]}"
-            )
-            response = client.messages.create(
-                model='claude-haiku-4-5-20251001',
-                max_tokens=200,
-                messages=[{'role': 'user', 'content': prompt}]
-            )
-            import json
-            raw = response.content[0].text.strip()
-            # Extract JSON from response
-            start = raw.find('{')
-            end = raw.rfind('}') + 1
-            if start >= 0 and end > start:
-                result = json.loads(raw[start:end])
-                ai_valid = result.get('valid', True)
-                ai_reason = result.get('reason', '')
-                ai_result = 'Valid' if ai_valid else 'Invalid'
-        except Exception as e:
-            ai_reason = f'AI check unavailable: {str(e)}. Please review manually.'
-            ai_valid = True  # Default to valid if AI unavailable
-            ai_result = 'Valid (AI unavailable)'
-    else:
-        ai_reason = 'AI check not configured (ANTHROPIC_API_KEY not set). Affidavit accepted based on word count.'
+        # Formulate reason/summary for the modal
+        flags = validation_output.get('flags', [])
+        summary = validation_output.get('summary', '')
+        if flags:
+            flag_text = " Issues identified: " + "; ".join(flags)
+            ai_reason = f"{summary}{flag_text}".strip()
+        else:
+            ai_reason = summary or 'Affidavit satisfies all structural, legal, and SAPS jurat requirements.'
+
+    except Exception as e:
+        ai_reason = f'AI check unavailable: {str(e)}. Please review manually.'
+        ai_valid = True
+        ai_result = 'Valid (AI unavailable)'
+    finally:
+        # Clean up temporary rendered image
+        if temp_img_path and os.path.exists(temp_img_path):
+            try:
+                os.remove(temp_img_path)
+            except OSError:
+                pass
 
     return jsonify({
         'success': True,
@@ -468,7 +473,7 @@ def upload_profile_picture():
         return jsonify({'success': False, 'message': 'No file uploaded.'}), 400
 
     ext = file.filename.rsplit('.', 1)[-1].lower()
-    if ext not in current_app.config['ALLOWED_IMAGE_EXTENSIONS']:
+    if ext not in current_app.pytconfig['ALLOWED_IMAGE_EXTENSIONS']:
         return jsonify({'success': False, 'message': 'Only JPG/PNG images allowed.'}), 400
 
     upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'profiles')
