@@ -15,6 +15,37 @@ from saps_validator import validate_saps_docket_affidavit
 constable_bp = Blueprint('constable', __name__)
 
 
+def generate_case_number():
+    """
+    Generates a sequential SAPS case number per month/year.
+    Format: CAS {seq_number:03d}/{month:02d}/{year} (e.g., CAS 001/09/2026)
+    """
+    now = datetime.now()
+    month = now.strftime("%m")
+    year = now.strftime("%Y")
+    suffix = f"/{month}/{year}"
+
+    # Query the latest case number registered in the current month & year
+    query = """
+        SELECT case_number FROM dockets 
+        WHERE case_number LIKE %s 
+        ORDER BY id DESC 
+        LIMIT 1
+    """
+    latest = query_db(query, (f"%{suffix}",), one=True)
+
+    if latest and latest.get("case_number"):
+        try:
+            raw_seq = latest["case_number"].replace("CAS ", "").split("/")[0]
+            next_seq = int(raw_seq) + 1
+        except (ValueError, IndexError):
+            next_seq = 1
+    else:
+        next_seq = 1
+
+    return f"CAS {next_seq:03d}/{month}/{year}"
+
+
 def constable_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -65,6 +96,14 @@ def dashboard():
     )
     return render_template('constable/dashboard.html', officer=officer,
                            unread=unread['cnt'] if unread else 0)
+
+
+# ── API: Generate Next Case Number (For Frontend Preview) ─────────────────────
+@constable_bp.route('/api/generate-case-number', methods=['GET'])
+@constable_required
+def api_generate_case_number():
+    case_num = generate_case_number()
+    return jsonify({'success': True, 'case_number': case_num})
 
 
 # ── API: My cases ─────────────────────────────────────────────────────────────
@@ -160,19 +199,17 @@ def save_docket(docket_id):
             "INSERT INTO case_status_history (docket_id, old_status, new_status, changed_by) VALUES (%s,%s,%s,%s)",
             (docket_id, old_status, new_status, session['user_id'])
         )
-        # Notify captain if escalated
         if new_status == 'Escalated to Captain':
             execute_db(
                 "INSERT INTO notifications (recipient_role, message, related_type, related_id) VALUES ('captain',%s,'docket',%s)",
                 (f"Docket {docket['case_number']} has been escalated to Captain.", docket_id)
             )
 
-    # Handle new document uploads
+    # Handle document uploads
     doc_types = ['affidavit', 'witness_statement', 'investigation_diary', 'suspect_info']
     for doc_type in doc_types:
         file = request.files.get(doc_type)
         if file and file.filename and _allowed_doc(file.filename):
-            # Get current max version
             cur = query_db(
                 "SELECT MAX(version) AS mv FROM docket_documents WHERE docket_id=%s AND document_type=%s",
                 (docket_id, doc_type), one=True
@@ -208,7 +245,6 @@ def save_docket(docket_id):
         'Edited Docket', docket_id, docket['case_number'], new_status,
         f"Constable {session['full_name']} edited docket {docket['case_number']}."
     )
-    # Notify admin
     execute_db(
         "INSERT INTO notifications (recipient_role, message, related_type, related_id) VALUES ('admin',%s,'docket',%s)",
         (f"Constable {session['full_name']} edited docket {docket['case_number']}.", docket_id)
@@ -216,12 +252,11 @@ def save_docket(docket_id):
     return jsonify({'success': True, 'message': 'Docket updated successfully.'})
 
 
-# ── API: Add new docket (initial save or after AI check) ─────────────────────
+# ── API: Add new docket (with Automatic Case Number Generation) ───────────────
 @constable_bp.route('/api/add-docket', methods=['POST'])
 @constable_required
 def add_docket():
     data = request.form
-    case_number = data.get('case_number', '').strip()
     complainant_name = data.get('complainant_full_name', '').strip()
     case_type = data.get('case_type', '').strip()
     complainant_id = data.get('complainant_id_number', '').strip()
@@ -231,7 +266,12 @@ def add_docket():
     force_save_mode = data.get('force_save', 'false') == 'true'
     force_pin = data.get('force_pin', '')
 
-    # Validate
+    # Auto-generate case number if not provided or left blank
+    case_number = data.get('case_number', '').strip()
+    if not case_number:
+        case_number = generate_case_number()
+
+    # Validate required fields
     if not all([case_number, complainant_name, case_type, complainant_id, date_reported, reporting_station]):
         return jsonify({'success': False, 'message': 'All required fields must be filled.'}), 400
 
@@ -239,7 +279,7 @@ def add_docket():
         return jsonify({'success': False, 'message': 'Cannot set status to Case Closed.'}), 403
 
     if query_db("SELECT id FROM dockets WHERE case_number=%s", (case_number,), one=True):
-        return jsonify({'success': False, 'message': 'Case number already exists in the system.'}), 409
+        return jsonify({'success': False, 'message': f'Case number {case_number} already exists.'}), 409
 
     # Force save PIN check
     if force_save_mode:
@@ -307,7 +347,12 @@ def add_docket():
             (f"New docket {case_number} escalated to Captain.", docket_id)
         )
 
-    return jsonify({'success': True, 'message': 'Docket saved successfully.', 'docket_id': docket_id})
+    return jsonify({
+        'success': True,
+        'message': f'Docket registered successfully with Case Number: {case_number}',
+        'docket_id': docket_id,
+        'case_number': case_number
+    })
 
 
 # ── API: AI Check ─────────────────────────────────────────────────────────────
@@ -321,7 +366,6 @@ def ai_check():
     if not _allowed_doc(file.filename):
         return jsonify({'success': False, 'message': 'Only PDF files accepted for affidavit.'}), 400
 
-    # Extract text and render first page to image for computer vision check
     pdf_bytes = file.read()
     text = ''
     temp_img_path = None
@@ -330,7 +374,6 @@ def ai_check():
             for page in pdf:
                 text += page.get_text()
 
-            # Render the first page to PNG for signature/stamp detection
             if len(pdf) > 0:
                 first_page = pdf[0]
                 pix = first_page.get_pixmap(dpi=150)
@@ -356,7 +399,6 @@ def ai_check():
             'ai_reason': f'The affidavit contains only {word_count} words. Minimum required is 250.'
         })
 
-    # Run Gemini-powered SAPS Affidavit Compliance Validation
     try:
         validation_output = validate_saps_docket_affidavit(
             text_content=text,
@@ -365,7 +407,6 @@ def ai_check():
         ai_valid = validation_output.get('is_compliant', False)
         ai_result = 'Valid' if ai_valid else 'Non-Compliant'
 
-        # Formulate reason/summary for the modal
         flags = validation_output.get('flags', [])
         summary = validation_output.get('summary', '')
         if flags:
@@ -379,7 +420,6 @@ def ai_check():
         ai_valid = True
         ai_result = 'Valid (AI unavailable)'
     finally:
-        # Clean up temporary rendered image
         if temp_img_path and os.path.exists(temp_img_path):
             try:
                 os.remove(temp_img_path)
@@ -423,7 +463,6 @@ def update_profile():
     if not all([full_name, email, officer_id, rank]):
         return jsonify({'success': False, 'message': 'Required fields missing.'}), 400
 
-    # Check for duplicate officer_id/email (excluding self)
     dup_oid = query_db(
         "SELECT id FROM officers WHERE officer_id=%s AND id!=%s", (officer_id, session['user_id']), one=True
     )
@@ -473,7 +512,7 @@ def upload_profile_picture():
         return jsonify({'success': False, 'message': 'No file uploaded.'}), 400
 
     ext = file.filename.rsplit('.', 1)[-1].lower()
-    if ext not in current_app.pytconfig['ALLOWED_IMAGE_EXTENSIONS']:
+    if ext not in current_app.config['ALLOWED_IMAGE_EXTENSIONS']:
         return jsonify({'success': False, 'message': 'Only JPG/PNG images allowed.'}), 400
 
     upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'profiles')
