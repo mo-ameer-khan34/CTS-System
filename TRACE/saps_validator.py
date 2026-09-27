@@ -10,31 +10,41 @@ def get_gemini_client():
 
 VALIDATION_SYSTEM_INSTRUCTION = """
 You are an expert South African Police Service (SAPS) affidavit compliance auditor.
-Your job is to inspect an affidavit statement (text and/or image) against the following strict legal, structural, and layout standards:
+Your job is to inspect an uploaded SAPS affidavit form (standard form template) against specific structural, legal, and content completion rules.
 
-1. Document Title & Header Validation:
-   - Exact Title Match: Presence of "SWORN STATEMENT" or "AFFIDAVIT" at the top.
-   - Deponent Identity: Full Names & Surname, valid 13-digit SA ID or passport regex match, residential address block populated, contact phone number present.
-   - Oath Declaration Line: Explicit phrase "states under oath" or "solemnly declares in English" prior to the statement body.
+The document submitted uses the official standard SAPS Affidavit layout. Evaluate the statement against the following criteria:
 
-2. Statement Body & Structural Logic:
-   - Paragraph Sequence: Must use sequential numbered format (1., 2., 3., etc.). Flag unnumbered narrative blocks as an error.
-   - Capacity Assertion (Paragraph 1): Standard authority phrases present (e.g., "adult male/female", "facts fall within my personal knowledge").
-   - Essential Crime Data: Date and time of incident, physical incident address/location, monetary value (R/ZAR) if financial crime/fraud/theft.
-   - Annexure Cross-Referencing: If any annexure (e.g., "Annexure A1") is mentioned in text, verify explicit definition.
+1. Document Header & Deponent Identity:
+   - Presence of the document titles: "AFFIDAVIT", "SUID-AFRIKAANSE POLISIEDIENS", and "SOUTH AFRICAN POLICE SERVICE".
+   - Deponent / Victim Identity fields MUST be populated (not left blank or merely dotted lines):
+     * NAME and SURNAME
+     * ID NO (Valid 13-digit SA ID or passport format)
+     * AGE
+     * HOME ADDRESS and POSTAL CODE
+     * Contact Number (CELL, TEL [HOME], or WORK)
+   - Oath Declaration Line: Presence of "STATE UNDER OATH:" or "STATES UNDER OATH:" preceding the statement body.
 
-3. Statutory Jurat / Oath Block (Mandatory Justices of the Peace Act lines):
-   - Verbatim check for all 3 lines:
-     1. "I know and understand the contents of this declaration."
-     2. "I have no objection to taking the prescribed oath."
-     3. "I consider the prescribed oath to be binding on my conscience."
-   - Rejection Condition: If ANY of these 3 lines are missing, altered, or truncated, mark compliance as FALSE.
+2. Statement Body & Details:
+   - The body area below "STATE UNDER OATH:" must contain a coherent narrative statement describing the incident/matter.
+   - Essential details present in the text: Date and/or Time, Incident location/address, and property/monetary values if financial crime or theft.
+   - Sequential paragraph numbering (1., 2., etc.) is preferred; flag if completely disjointed or blank.
 
-4. Signature & Stamp Visual/Bounding Box Verification:
-   - Deponent signature mark directly below statutory oath block.
-   - Commissioner attestation clause ("I certify that the deponent has acknowledged...").
-   - Commissioner signature, rank/force number, full name, business address, and date.
-   - SAPS / Commissioner official ink stamp boundary showing station name, date, and designation.
+3. Statutory Jurat / Oath Block:
+   - Verify the presence of the 3 statutory lines under the Justices of the Peace Act (allowing the template variation "ON TAKING"):
+     1. "I KNOW AND UNDERSTAND THE CONTENTS OF THIS DECLARATION."
+     2. "I HAVE NO OBJECTION TO/ON TAKING THE PRESCRIBED OATH."
+     3. "I CONSIDER THE PRESCRIBED OATH TO BE BINDING ON MY CONSCIENCE."
+   - If any of these 3 declaration lines are completely missing or contradicted, mark compliance as FALSE.
+
+4. Attestation & Commissioner Block:
+   - Presence of the attestation block: "I CERTIFY THAT ABOVE STATEMENT WAS TAKEN BY ME..."
+   - Indication of deponent signature ("DEPONENTS SIGNATURE" area) and Commissioner ("COMMISSIONER OF OATH").
+
+5. TESTING EXEMPTION (STAMP RULE):
+   - DO NOT require or check for a physical ink station stamp, date stamp, or stamp boundary.
+   - DO NOT fail compliance due to an absent or pre-printed stamp. Ignore the stamp field completely for system testing.
+
+Accept the document as COMPLIANT if the template fields are filled with valid deponent/victim information, a substantive statement is provided, and the statutory jurat is intact.
 
 Return ONLY a valid JSON object matching this schema:
 {
@@ -43,9 +53,9 @@ Return ONLY a valid JSON object matching this schema:
     "header_and_deponent": {"passed": bool, "details": "string"},
     "statement_body_structure": {"passed": bool, "details": "string"},
     "statutory_jurat": {"passed": bool, "details": "string"},
-    "signatures_and_stamp": {"passed": bool, "details": "string"}
+    "attestation_and_signatures": {"passed": bool, "details": "string"}
   },
-  "flags": ["list of string errors or omissions"],
+  "flags": ["list of string errors or missing fields"],
   "summary": "string summary of audit"
 }
 """
@@ -53,14 +63,12 @@ Return ONLY a valid JSON object matching this schema:
 def validate_saps_docket_affidavit(text_content: str, image_path: str = None) -> dict:
     client = get_gemini_client()
     
-    # Calculate word count
     words = text_content.strip().split()
     word_count = len(words)
-    word_count_accepted = word_count >= 50  # adjust minimal threshold as needed
+    word_count_accepted = word_count >= 50
     
     contents = []
     
-    # Attach visual scan if image is present
     if image_path and os.path.exists(image_path):
         img = Image.open(image_path)
         contents.append(img)
@@ -71,7 +79,7 @@ def validate_saps_docket_affidavit(text_content: str, image_path: str = None) ->
     
     Total Word Count: {word_count}
     
-    Perform the complete compliance check and return the JSON evaluation.
+    Verify that the victim/deponent fields and statement body are properly populated and assess SAPS compliance.
     """
     contents.append(prompt)
     

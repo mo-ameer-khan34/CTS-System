@@ -344,7 +344,7 @@ def ai_check():
     words = text.split()
     word_count = len(words)
 
-    if word_count <= 250:
+    if word_count <= 100:
         if temp_img_path and os.path.exists(temp_img_path):
             os.remove(temp_img_path)
         return jsonify({
