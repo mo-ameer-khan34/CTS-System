@@ -123,6 +123,9 @@
   <!-- Closed Cases -->
   <div id="tab-closed-cases" class="tab-content">
     <h2 class="tab-title">Closed Cases</h2>
+    <div class="search-bar-row">
+      <input type="search" id="closedCasesSearch" placeholder="Search by case number, type, complainant, or closed by..." aria-label="Search closed cases" oninput="renderClosedCases()">
+    </div>
     <div id="closedCasesTable" class="cases-table-wrap"><div class="loading-state">Loading...</div></div>
   </div>
 

@@ -1,6 +1,7 @@
 // TRACE — Admin Dashboard JavaScript
 
 let adminChartInstance = null;
+let closedCasesData = [];
 
 document.addEventListener('DOMContentLoaded', () => {
   loadAdminStats();
@@ -113,23 +114,40 @@ function loadClosedCases() {
   fetch('/admin/api/closed-cases')
     .then(r => r.json())
     .then(cases => {
-      if (!cases.length) { wrap.innerHTML = '<div class="loading-state"><p>No closed cases.</p></div>'; return; }
-      let html = `<table class="cases-table"><thead><tr>
+      closedCasesData = cases;
+      renderClosedCases();
+    });
+}
+
+function renderClosedCases() {
+  const wrap = document.getElementById('closedCasesTable');
+  const query = (document.getElementById('closedCasesSearch').value || '').trim().toLowerCase();
+  const filteredCases = closedCasesData.filter(c =>
+    [c.case_number, c.case_type, c.complainant_full_name, c.closed_by_name, c.closed_at]
+      .some(value => String(value || '').toLowerCase().includes(query))
+  );
+
+  if (!filteredCases.length) {
+    const message = closedCasesData.length ? 'No matching closed cases.' : 'No closed cases.';
+    wrap.innerHTML = `<div class="loading-state"><p>${message}</p></div>`;
+    return;
+  }
+
+  let html = `<table class="cases-table"><thead><tr>
         <th>Case Number</th><th>Case Type</th><th>Complainant</th><th>Closed By</th><th>Closed At</th><th>Actions</th>
       </tr></thead><tbody>`;
-      cases.forEach(c => {
-        html += `<tr>
-          <td>${escHtml(c.case_number)}</td>
-          <td>${escHtml(c.case_type)}</td>
-          <td>${escHtml(c.complainant_full_name)}</td>
-          <td>${escHtml(c.closed_by_name) || '—'}</td>
-          <td>${formatDate(c.closed_at)}</td>
-          <td><button class="btn btn-sm btn-outline" onclick="viewAdminDocket(${c.id})">View</button></td>
-        </tr>`;
-      });
-      html += '</tbody></table>';
-      wrap.innerHTML = html;
-    });
+  filteredCases.forEach(c => {
+    html += `<tr>
+      <td>${escHtml(c.case_number)}</td>
+      <td>${escHtml(c.case_type)}</td>
+      <td>${escHtml(c.complainant_full_name)}</td>
+      <td>${escHtml(c.closed_by_name) || '—'}</td>
+      <td>${formatDate(c.closed_at)}</td>
+      <td><button class="btn btn-sm btn-outline" onclick="viewAdminDocket(${c.id})">View</button></td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
 }
 
 // ── Flagged Cases ─────────────────────────────────────────────────────────────

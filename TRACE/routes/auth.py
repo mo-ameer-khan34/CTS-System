@@ -35,6 +35,8 @@ def constable_signup():
         email = data.get('email', '').strip().lower()
 
         errors = []
+        if data.get('privacy_consent') != 'accepted':
+            errors.append('You must agree to the Privacy Policy and POPIA notice before submitting.')
         if not all([full_name, sa_id, dob, officer_id, rank, department, password, confirm, email]):
             errors.append('All fields are required.')
         if password != confirm:
@@ -128,6 +130,8 @@ def captain_signup():
         email = data.get('email', '').strip().lower()
 
         errors = []
+        if data.get('privacy_consent') != 'accepted':
+            errors.append('You must agree to the Privacy Policy and POPIA notice before submitting.')
         if not all([full_name, sa_id, dob, officer_id, rank, department, password, confirm, email]):
             errors.append('All fields are required.')
         if password != confirm:

@@ -78,6 +78,13 @@
         <p>Clicking <strong>"Sign Up as Constable"</strong> will send a registration request to the System Administrator. You will <strong>not</strong> be able to log in until your request is reviewed and approved.</p>
       </div>
 
+      <div class="consent-control">
+        <input type="checkbox" id="privacyConsent" name="privacy_consent" value="accepted" required>
+        <div class="consent-copy">
+          <label for="privacyConsent">I have read the </label><button type="button" class="policy-link" onclick="document.getElementById('privacyPolicyDialog').showModal()">Privacy Policy</button><label for="privacyConsent"> and agree to the processing of my personal information in accordance with POPIA.</label>
+        </div>
+      </div>
+
       <button type="submit" class="btn btn-primary btn-full">Sign Up as Constable</button>
     </form>
 
@@ -88,6 +95,7 @@
   </div>
 </div>
 
+{% include 'privacy_policy_dialog.html' %}
 <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>
